@@ -332,6 +332,29 @@ Screenshots live in `screenshots/` and are **never edited** — saved exactly as
   - **Scope** ("Which of the 4 ads should I run?"): *Just one, go deep* · *All 4, separate runs* · *Ad #N only* · "Type something." → `screenshots/48-spec-wizard-2-scope.png`
   - **Aspect** ("What aspect ratio(s)?"): 1:1 feed · 9:16 reels · "Type something." → `screenshots/48-spec-wizard-3-aspect.png`
   - **Count / Submit:** per-engine quantities, then a single explicit Submit.
+- **🧩 Open design — the config LOGIC (Lucas's question):** the hard part is the combinatorial space — **N ads × {Reptile, Copy-Derived, Template} × {auto | manual} × per-type counts × realism on/off**. Naïve "12 of everything on every ad" = ~150+ renders with no read on what's working. Proposed logic (architecture-level; CLI agent is pulling the real ad-type + reptile-trigger lists to put concrete numbers on it):
+  1. **Make volume opt-in, not multiplicative-by-default.** The common path should be cheap: pick engine(s) → Scope = "one, go deep" → accept small count defaults → Submit. The full matrix is a power-user expansion, never the default.
+  2. **Scope is the spend governor** (decide *before* counts): *one ad, go deep* (cheapest signal / stress test — the right default) vs *all N, separate runs* (breadth, more spend). Scope sets how many ads get rendered.
+  3. **Count is PER-ENGINE, not per-ad×per-type×per-angle.** Native engines vary their own angles internally — Reptile samples from its 12 psychological angles, Copy-Derived from the copy blocks — so the user sets a single per-engine concept count (e.g. 3), and the engine handles type variety. Don't expose 12 angle-counts.
+  4. **Template is its own branch** (it has structure Native lacks):
+     - **auto** = system picks a sensible ad-type spread (low-config default).
+     - **manual** = user picks specific ad-types + a count each (e.g. `founder-note:2`, `testimonial:3`).
+     - **Realistic enhancer** (on/off) is **Template-only** — a photographic-realism guardrail on the render prompt that doesn't rewrite the raw Template output (see screenshot). One per-batch toggle; default **off** unless the product needs photographic realism.
+  5. **Signal-first defaults:** start narrow (1 strongest ad · each chosen engine at ~3 · Template auto · realism off ≈ ~9 renders), read the winners, *then* scale the winner — instead of spraying 150 up front.
+**Screenshot:**
+
+![48-realistic-enhancer-toggle.png](screenshots/48-realistic-enhancer-toggle.png)
+
+- **📐 Run formats (the bounded presets Lucas asked for — build these as selectable formats):** instead of an open combinatorial form, ship a menu of **named formats**, each a complete, testable run config. Native count = concepts per engine (engine varies its own angles); Template = ad-types + per-type counts + realism (template-only); aspects 1:1 feed / 9:16 reels.
+  | Format | Ads | Engines & counts | Template | Realism | Aspect | ≈ Renders | Use |
+  |---|---|---|---|---|---|---|---|
+  | **F1 · Native Stress Test** | strongest 1 | Reptile 3 + Copy-Derived 3 | — | — | 1:1 | ~6 | fastest concept read |
+  | **F2 · Native Breadth** | all | Reptile 2 + Copy-Derived 2 each | — | — | 1:1 | ~16 (4 ads) | which copy wins |
+  | **F3 · Template Auto** | 1 | — | auto (system picks types) | off | 1:1 | auto | what templates yield, no fuss |
+  | **F4 · Template Manual** | 1 | — | manual: pick 2–3 types + count (e.g. founder-note 2 / testimonial 2 / hero 2) | on | 1:1 | per picks | deliberate template formats |
+  | **F5 · Winner Scale-Up** | the winner | Reptile 4 + Copy-Derived 4 + Template auto 4 | auto | on | 1:1 + 9:16 | ~24 | full coverage on a proven concept |
+  | **F6 · Reels Pass** | chosen | chosen engines | optional | as set | 9:16 only | varies | reels/stories placement test |
+  - **Principle:** each format is bounded and answers one question — never "12 of everything on every ad." Start at F1, scale the winner with F5. (Concrete type/trigger lists for F4 land when the CLI agent returns them.)
 - **Proposed fix:**
   1. **Insert this configuration step before any run** — CLI: the step-through wizard above (Engine→Scope→Aspect→Count→Submit). Dashboard: make submitting the modal the **only** way to fire — no implicit suite.
   2. **Template config surface:** which ad-type(s) of the 33, per-type quantities, auto vs manual, model (gpt-image-2 / nano-banana-pro), realism — all explicit choices (the wizard branches into these when Template is picked).
